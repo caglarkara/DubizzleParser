@@ -1,0 +1,504 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each_Query_in_Queries_Table": {
+                "actions": {
+                    "CallDubizzleWithQueryHTTP": {
+                        "inputs": {
+                            "method": "GET",
+                            "uri": "@{variables('dubizzleQuery')}"
+                        },
+                        "runAfter": {
+                            "Set_variable_4": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Http"
+                    },
+                    "For_each_2": {
+                        "actions": {
+                            "Check_If_Listing_Already_Exists": {
+                                "actions": {
+                                    "Condition": {
+                                        "actions": {
+                                            "Insert_or_Replace_Entity": {
+                                                "inputs": {
+                                                    "body": "@items('For_each_2')",
+                                                    "host": {
+                                                        "connection": {
+                                                            "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                                        }
+                                                    },
+                                                    "method": "put",
+                                                    "path": "/Tables/@{encodeURIComponent('listings')}/entities(PartitionKey='@{encodeURIComponent(variables('partitionKey'))}',RowKey='@{encodeURIComponent(variables('rowKey'))}')"
+                                                },
+                                                "runAfter": {},
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "expression": {
+                                            "and": [
+                                                {
+                                                    "not": {
+                                                        "equals": [
+                                                            "@int(variables('Price'))",
+                                                            "@int(items('For_each_2')['Price'])"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "runAfter": {
+                                            "For_each": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "If"
+                                    },
+                                    "For_each": {
+                                        "actions": {
+                                            "Set_variable_5": {
+                                                "inputs": {
+                                                    "name": "Price",
+                                                    "value": "@items('For_each')?['price']"
+                                                },
+                                                "runAfter": {},
+                                                "type": "SetVariable"
+                                            }
+                                        },
+                                        "foreach": "@body('ParseExistingListing')?['value']",
+                                        "runAfter": {},
+                                        "type": "Foreach"
+                                    }
+                                },
+                                "else": {
+                                    "actions": {
+                                        "Insert_New_Record_If_Not_Exists": {
+                                            "inputs": {
+                                                "body": "@items('For_each_2')",
+                                                "host": {
+                                                    "connection": {
+                                                        "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                                    }
+                                                },
+                                                "method": "put",
+                                                "path": "/Tables/@{encodeURIComponent('listings')}/entities(PartitionKey='@{encodeURIComponent(variables('partitionKey'))}',RowKey='@{encodeURIComponent(variables('rowKey'))}')"
+                                            },
+                                            "runAfter": {},
+                                            "type": "ApiConnection"
+                                        }
+                                    }
+                                },
+                                "expression": {
+                                    "and": [
+                                        {
+                                            "greater": [
+                                                "@length(body('Get_entities_2')['value'])",
+                                                "@int(0)"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "runAfter": {
+                                    "ParseExistingListing": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "If"
+                            },
+                            "Get_entities_2": {
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                        }
+                                    },
+                                    "method": "get",
+                                    "path": "/Tables/@{encodeURIComponent('listings')}/entities",
+                                    "queries": {
+                                        "$filter": "RowKey eq '@{variables('rowKey')}' and PartitionKey eq '@{variables('partitionKey')}'"
+                                    }
+                                },
+                                "runAfter": {
+                                    "Set_RowKey": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "ApiConnection"
+                            },
+                            "ParseExistingListing": {
+                                "inputs": {
+                                    "content": "@body('Get_entities_2')",
+                                    "schema": {
+                                        "properties": {
+                                            "odata.metadata": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "items": {
+                                                    "properties": {
+                                                        "PartitionKey": {
+                                                            "type": "string"
+                                                        },
+                                                        "RowKey": {
+                                                            "type": "string"
+                                                        },
+                                                        "Timestamp": {
+                                                            "type": "string"
+                                                        },
+                                                        "creationTS": {
+                                                            "type": "string"
+                                                        },
+                                                        "odata.etag": {
+                                                            "type": "string"
+                                                        },
+                                                        "price": {
+                                                            "type": "integer"
+                                                        },
+                                                        "title": {
+                                                            "type": "string"
+                                                        },
+                                                        "url": {
+                                                            "type": "string"
+                                                        },
+                                                        "userName": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "odata.etag",
+                                                        "PartitionKey",
+                                                        "RowKey",
+                                                        "Timestamp",
+                                                        "creationTS",
+                                                        "price",
+                                                        "title",
+                                                        "url",
+                                                        "userName"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "runAfter": {
+                                    "Get_entities_2": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "ParseJson"
+                            },
+                            "Set_PartitionKey": {
+                                "inputs": {
+                                    "name": "partitionKey",
+                                    "value": "@{items('For_each_2')['PartitionKey']}"
+                                },
+                                "runAfter": {},
+                                "type": "SetVariable"
+                            },
+                            "Set_RowKey": {
+                                "inputs": {
+                                    "name": "rowKey",
+                                    "value": "@{encodeUriComponent(items('For_each_2')['RowKey'])}"
+                                },
+                                "runAfter": {
+                                    "Set_PartitionKey": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "SetVariable"
+                            }
+                        },
+                        "foreach": "@body('Select_2')",
+                        "runAfter": {
+                            "Select_2": [
+                                "Succeeded"
+                            ]
+                        },
+                        "runtimeConfiguration": {
+                            "concurrency": {
+                                "repetitions": 1
+                            }
+                        },
+                        "type": "Foreach"
+                    },
+                    "HttpTrigger": {
+                        "inputs": {
+                            "body": "@body('CallDubizzleWithQueryHTTP')",
+                            "function": {
+                                "id": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/resourceGroups/parsemaplistingsdata2/providers/Microsoft.Web/sites/ParseMapListingsData/functions/HttpTrigger"
+                            }
+                        },
+                        "limit": {
+                            "timeout": "PT60S"
+                        },
+                        "runAfter": {
+                            "CallDubizzleWithQueryHTTP": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Function"
+                    },
+                    "Parse_JSON_2": {
+                        "inputs": {
+                            "content": "@body('HttpTrigger')",
+                            "schema": {
+                                "items": {
+                                    "properties": {
+                                        "category": {
+                                            "type": "string"
+                                        },
+                                        "location": {
+                                            "type": "string"
+                                        },
+                                        "price": {
+                                            "type": "integer"
+                                        },
+                                        "title": {
+                                            "type": "string"
+                                        },
+                                        "url": {
+                                            "type": "string"
+                                        },
+                                        "userame": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "category",
+                                        "title",
+                                        "url",
+                                        "price"
+                                    ],
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "runAfter": {
+                            "HttpTrigger": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    },
+                    "Select_2": {
+                        "inputs": {
+                            "from": "@body('Parse_JSON_2')",
+                            "select": {
+                                "PartitionKey": "@item()['category']",
+                                "RowKey": "@{encodeUriComponent(item()['title'])}",
+                                "creationTS": "@utcNow()",
+                                "price": "@item()['price']",
+                                "title": "@item()['title']",
+                                "url": "@item()['url']",
+                                "userName": "@variables('username')"
+                            }
+                        },
+                        "runAfter": {
+                            "Parse_JSON_2": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Select"
+                    },
+                    "Set_variable": {
+                        "inputs": {
+                            "name": "dubizzleQuery",
+                            "value": "@items('For_each_Query_in_Queries_Table')['dubizzleQuery']"
+                        },
+                        "runAfter": {},
+                        "type": "SetVariable"
+                    },
+                    "Set_variable_4": {
+                        "inputs": {
+                            "name": "username",
+                            "value": "@items('For_each_Query_in_Queries_Table')['username']"
+                        },
+                        "runAfter": {
+                            "Set_variable": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "foreach": "@body('ParseQueriesResult')",
+                "runAfter": {
+                    "ParseQueriesResult": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "concurrency": {
+                        "repetitions": 1
+                    }
+                },
+                "type": "Foreach"
+            },
+            "Get_entities": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuretables']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/Tables/@{encodeURIComponent('queries')}/entities"
+                },
+                "runAfter": {
+                    "Initialize_variable_5": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_variable": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "dubizzleQuery",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_2": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "partitionKey",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_3": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "rowKey",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_2": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_4": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "username",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_3": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_5": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "Price",
+                            "type": "Integer",
+                            "value": 0
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_4": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "ParseQueriesResult": {
+                "inputs": {
+                    "content": "@body('Get_entities')?['value']",
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "dubizzleQuery": {
+                                    "type": "string"
+                                },
+                                "queryName": {
+                                    "type": "string"
+                                },
+                                "username": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "username",
+                                "queryName",
+                                "description",
+                                "dubizzleQuery"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "runAfter": {
+                    "Get_entities": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Recurrence": {
+                "recurrence": {
+                    "frequency": "Minute",
+                    "interval": 15
+                },
+                "type": "Recurrence"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuretables": {
+                    "connectionId": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/resourceGroups/dubizzletesting/providers/Microsoft.Web/connections/azuretables",
+                    "connectionName": "azuretables",
+                    "id": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/providers/Microsoft.Web/locations/westeurope/managedApis/azuretables"
+                }
+            }
+        }
+    }
+}
