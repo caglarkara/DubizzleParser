@@ -36,3 +36,48 @@ Of course, we don't want to spam the user with the same listings again and again
 I decided to use a combination of Azure Logic Apps, Azure Tables and Azure Functions (python) in order to reach that goal. Because all these are very cool to use. Also dead cheap to use! 
 
 I will try to explain the basic building blocks of the application here. 
+
+The application consists of nnn Logic Apps:
+1. dubizzleparser
+    This logic app is the main part of the application. It will go through the queries table first. Then for each of the query it finds, it will call Dubizzle and parse the resulting html file. Since the result is dirty, it will first send it to the 
+    function (TODO: Put the function name here) to remove everything and leave the Json alone.
+    Then it will parse the results and check if it is an existing record in Listings table. If not, it inserts. 
+2. notifsender: 
+   This logic app is responsible to send the new entries to all the users. To avoid sending the same entities over and over again, the notification sender checks for the new found entities within the last 20 minutes. 
+
+3.
+
+One Function:
+TODO: Place the function name here
+
+
+3 Azure Tables:
+1. Queries:
+    This table is the main table that contains the queries created by the users.
+    The fields are:
+    "username",
+    "queryName",
+    "description",
+    "dubizzleQuery"
+    The usage of these fields are self explanatory.
+
+2. Listings:
+    This table holds the result of the query executions. The results are kept in this table forever (unless cleared from the table manually or by helper logic apps).
+    The fields in this table are:
+    "PartitionKey": This is the category (such as used cards, classfieds)
+    "RowKey" : This is the title. Yes, we determine the record uniqueness by the title of the ad. Not the brightest idea I know.
+    "Timestamp" : TODO: I don't know why this is here!
+    "creationTS": The creation timestamp of the entry
+    "price" : The listing price of the item
+    "title" : Title again!
+    "url" : The direct url to reach the listed item
+    "userName" : The user to whom the result belongs.
+
+3.  Users:
+    This table keeps the user data.
+    It has the following fields:
+    "email": 
+    "password": 
+    "phone":
+    "username": 
+
