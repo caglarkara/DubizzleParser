@@ -1,0 +1,250 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each": {
+                "actions": {
+                    "Get_entity": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/Tables/@{encodeURIComponent('users')}/entities(PartitionKey='@{encodeURIComponent('users')}',RowKey='@{encodeURIComponent(items('For_each')['userName'])}')"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    },
+                    "Parse_JSON_2": {
+                        "inputs": {
+                            "content": "@body('Get_entity')",
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "phone": {
+                                        "type": "string"
+                                    },
+                                    "username": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "Get_entity": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    },
+                    "Send_email_(V2)": {
+                        "inputs": {
+                            "body": {
+                                "from": "caglarkara@outlook.com",
+                                "ishtml": true,
+                                "subject": "New Car Notification from Dubizzle Parser!",
+                                "text": "@{concat(items('For_each')['title'],items('For_each')['content'],' url:',items('For_each')['url'])}",
+                                "to": "@variables('targetEmail')"
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['sendgrid']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/mail/send"
+                        },
+                        "runAfter": {
+                            "Set_variable_2": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Set_variable_2": {
+                        "inputs": {
+                            "name": "targetEmail",
+                            "value": "@body('Parse_JSON_2')?['email']"
+                        },
+                        "runAfter": {
+                            "Parse_JSON_2": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "foreach": "@body('Parse_JSON')",
+                "runAfter": {
+                    "Parse_JSON": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "concurrency": {
+                        "repetitions": 1
+                    }
+                },
+                "type": "Foreach"
+            },
+            "Get_entities": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuretables']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/Tables/@{encodeURIComponent('listings')}/entities",
+                    "queries": {
+                        "$filter": "creationTS gt '@{variables('queryDate')}'"
+                    }
+                },
+                "runAfter": {
+                    "Set_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Initialize_variable": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "queryDate",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_2": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "targetEmail",
+                            "type": "String"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Parse_JSON": {
+                "inputs": {
+                    "content": "@body('Get_entities')?['value']",
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "PartitionKey": {
+                                    "type": "string"
+                                },
+                                "RowKey": {
+                                    "type": "string"
+                                },
+                                "Timestamp": {
+                                    "type": "string"
+                                },
+                                "content": {
+                                    "type": "string"
+                                },
+                                "creationTS": {
+                                    "type": "string"
+                                },
+                                "odata.etag": {
+                                    "type": "string"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                },
+                                "userName": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "odata.etag",
+                                "PartitionKey",
+                                "RowKey",
+                                "Timestamp",
+                                "creationTS",
+                                "content",
+                                "title",
+                                "url",
+                                "userName"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "runAfter": {
+                    "Get_entities": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "Set_variable": {
+                "inputs": {
+                    "name": "queryDate",
+                    "value": "@{addMinutes(utcNow(),-20)}"
+                },
+                "runAfter": {
+                    "Initialize_variable_2": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "SetVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Recurrence": {
+                "recurrence": {
+                    "frequency": "Minute",
+                    "interval": 15
+                },
+                "type": "Recurrence"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuretables": {
+                    "connectionId": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/resourceGroups/dubizzletesting/providers/Microsoft.Web/connections/azuretables",
+                    "connectionName": "azuretables",
+                    "id": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/providers/Microsoft.Web/locations/westeurope/managedApis/azuretables"
+                },
+                "sendgrid": {
+                    "connectionId": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/resourceGroups/dubizzletesting/providers/Microsoft.Web/connections/sendgrid",
+                    "connectionName": "sendgrid",
+                    "id": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/providers/Microsoft.Web/locations/westeurope/managedApis/sendgrid"
+                }
+            }
+        }
+    }
+}

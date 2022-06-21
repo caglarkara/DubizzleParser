@@ -1,0 +1,81 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "For_each": {
+                "actions": {
+                    "Insert_or_Replace_Entity": {
+                        "inputs": {
+                            "body": "@items('For_each')",
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                }
+                            },
+                            "method": "put",
+                            "path": "/Tables/@{encodeURIComponent('queries')}/entities(PartitionKey='@{encodeURIComponent(items('For_each')['username'])}',RowKey='@{encodeURIComponent(items('For_each')['queryName'])}')"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    }
+                },
+                "foreach": "@triggerBody()",
+                "runAfter": {},
+                "type": "Foreach"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "manual": {
+                "inputs": {
+                    "schema": {
+                        "items": {
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "dubizzleQuery": {
+                                    "type": "string"
+                                },
+                                "queryName": {
+                                    "type": "string"
+                                },
+                                "username": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "username",
+                                "queryName",
+                                "description",
+                                "dubizzleQuery"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuretables": {
+                    "connectionId": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/resourceGroups/dubizzletesting/providers/Microsoft.Web/connections/azuretables",
+                    "connectionName": "azuretables",
+                    "id": "/subscriptions/377e516c-fc36-4eb1-a32a-9cd7b4b3f125/providers/Microsoft.Web/locations/westeurope/managedApis/azuretables"
+                }
+            }
+        }
+    }
+}
